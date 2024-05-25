@@ -1,0 +1,150 @@
+---
+title: "project final V0500"
+author: "Nahomi Farington"
+date: "2024-05-24"
+output: html_document
+---
+
+```{r}
+# Libraries
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(caret)
+library(class)
+library(stargazer)
+```
+
+```{r}
+load("C:/Users/Owner/Desktop/Psychology/R-work/V0500_Lecture1/BRFSS2022/BRFSS2022_rev.RData")
+
+# Data Preparation and Cleaning
+brfss22_clean <- brfss22 %>%
+  filter(!is.na(EDUCA), !is.na(ADDEPEV3)) %>%
+  mutate(
+    EDUCA = as.factor(EDUCA),
+    ADDEPEV3 = as.factor(ADDEPEV3)
+  )
+```
+
+```{r}
+load("C:/Users/Owner/Desktop/Psychology/R-work/Household_Pulse_data_ph4c2.RData")
+
+household_clean <- Household_Pulse_data %>%
+  filter(!is.na(EEDUC), !is.na(DOWN)) %>%
+  mutate(
+    EEDUC = as.factor(EEDUC),
+    DOWN = as.factor(DOWN)
+  )
+```
+
+```{r}
+summary_stats_brfss <- brfss22_clean %>%
+  summarise(
+    mean_educa = mean(as.numeric(EDUCA)),
+    sd_educa = sd(as.numeric(EDUCA)),
+    min_educa = min(as.numeric(EDUCA)),
+    max_educa = max(as.numeric(EDUCA)),
+    median_educa = median(as.numeric(EDUCA)),
+    mean_depression = mean(as.numeric(ADDEPEV3)),
+    sd_depression = sd(as.numeric(ADDEPEV3)),
+    min_depression = min(as.numeric(ADDEPEV3)),
+    max_depression = max(as.numeric(ADDEPEV3)),
+    median_depression = median(as.numeric(ADDEPEV3))
+  )
+```
+
+```{r}
+summary_stats_household <- household_clean %>%
+  summarise(
+    mean_educ = mean(as.numeric(EEDUC)),
+    sd_educ = sd(as.numeric(EEDUC)),
+    min_educ = min(as.numeric(EEDUC)),
+    max_educ = max(as.numeric(EEDUC)),
+    median_educ = median(as.numeric(EEDUC)),
+    mean_down = mean(as.numeric(DOWN)),
+    sd_down = sd(as.numeric(DOWN)),
+    min_down = min(as.numeric(DOWN)),
+    max_down = max(as.numeric(DOWN)),
+    median_down = median(as.numeric(DOWN))
+  )
+```
+
+```{r}
+print(summary_stats_brfss)
+print(summary_stats_household)
+```
+```{r}
+ggplot(brfss22_clean, aes(x = ADDEPEV3)) +
+  geom_bar(aes(fill = ADDEPEV3)) +
+  facet_wrap(~ EDUCA) +
+  theme_minimal() +
+  labs(title = "Depression by Education Level", x = "Depression", y = "Count") +
+  scale_fill_brewer(palette = "Set1")
+```
+
+```{r}
+ggplot(Household_Pulse_data, aes(x = EEDUC, fill = DOWN)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Distribution of Depression Levels by Education Level",
+    x = "Education Level",
+    y = "Proportion",
+    fill = "Feeling Depressed"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+chisq_test_brfss <- chisq.test(table(brfss22_clean$EDUCA, brfss22_clean$ADDEPEV3))
+print(chisq_test_brfss)
+
+chisq_test_household <- chisq.test(table(household_clean$EEDUC, household_clean$DOWN))
+print(chisq_test_household)
+```
+
+```{r}
+model_brfss <- glm(ADDEPEV3 ~ EDUCA, data = brfss22_clean, family = binomial)
+summary(model_brfss)
+
+model_household <- glm(DOWN ~ EEDUC, data = household_clean, family = binomial)
+summary(model_household)
+```
+```{r}
+interaction_model_brfss <- glm(ADDEPEV3 ~ EDUCA * X_PRACE2, data = brfss22_clean, family = binomial)
+summary(interaction_model_brfss)
+
+interaction_model_household <- glm(DOWN ~ EEDUC * RRACE, data = household_clean, family = binomial)
+summary(interaction_model_household)
+```
+
+```{r}
+ggplot(brfss22_clean, aes(x = as.numeric(EDUCA), y = as.numeric(ADDEPEV3))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Scatterplot of Education Level vs Depression", x = "Education Level", y = "Depression")
+
+ggplot(household_clean, aes(x = as.numeric(EEDUC), y = as.numeric(DOWN))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Scatterplot of Education Level vs Depression", x = "Education Level", y = "Depression")
+```
+
+```{r}
+stargazer(model_brfss, model_household, type = "text", title = "Logistic Regression Results", out = "regression_results.txt")
+```
+
+```{r}
+male_only_brfss <- brfss22_clean %>% filter(SEXVAR == "Male")
+female_only_brfss <- brfss22_clean %>% filter(SEXVAR == "Female")
+
+male_model <- glm(ADDEPEV3 ~ EDUCA, data = male_only_brfss, family = binomial)
+female_model <- glm(ADDEPEV3 ~ EDUCA, data = female_only_brfss, family = binomial)
+
+summary(male_model)
+summary(female_model)
+
+stargazer(male_model, female_model, type = "text", title = "Robustness Checks by Gender", out = "robustness_checks.txt")
+
+```
+
